@@ -1141,10 +1141,13 @@
         ];
 
         async function init() {
+            console.log('init - 开始执行');
             const serverGames = await fetchGamesFromServer();
+            console.log('init - serverGames:', serverGames);
             
             if (!serverGames) {
                 const localGames = getGames();
+                console.log('init - localGames:', localGames);
                 if (localGames.length === 0) {
                     localStorage.setItem('games', JSON.stringify(defaultGames));
                 } else {
@@ -2160,7 +2163,9 @@
 
         function renderGames() {
             const games = getGames();
+            console.log('renderGames - getGames():', games);
             const approvedGames = games.filter(g => !g.status || g.status === 'approved');
+            console.log('renderGames - approvedGames:', approvedGames);
             const grid = document.getElementById('gamesGrid');
             
             if (approvedGames.length === 0) {
