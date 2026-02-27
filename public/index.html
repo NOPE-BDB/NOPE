@@ -1208,8 +1208,10 @@
                 const response = await fetch(`${API_URL}/api/games`);
                 if (response.ok) {
                     const games = await response.json();
-                    localStorage.setItem('games', JSON.stringify(games));
-                    return games;
+                    if (games && games.length > 0) {
+                        localStorage.setItem('games', JSON.stringify(games));
+                        return games;
+                    }
                 }
             } catch (error) {
                 console.log('从服务器获取游戏失败，使用本地数据');
