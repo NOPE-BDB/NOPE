@@ -2944,8 +2944,22 @@
             showNotification(`私信已发送给 ${toName}`, 'success');
         }
 
-        function renderAdminPendingProfile() {
-            const pending = getPendingGames().filter(g => g.status === 'pending' || !g.status);
+        async function renderAdminPendingProfile() {
+            let pending = getPendingGames().filter(g => g.status === 'pending' || !g.status);
+            
+            if (!window.location.protocol.startsWith('file:')) {
+                try {
+                    const response = await fetch(`${API_URL}/api/pending-games`, {
+                        headers: { 'Authorization': `Bearer ${currentUser?.id}` }
+                    });
+                    if (response.ok) {
+                        pending = await response.json();
+                    }
+                } catch (e) {
+                    console.log('从服务器获取待审核游戏失败');
+                }
+            }
+            
             const list = document.getElementById('adminPendingListProfile');
             
             if (pending.length === 0) {
@@ -2956,7 +2970,7 @@
             list.innerHTML = pending.map(game => `
                 <div class="pending-card">
                     <h4>${game.icon} ${game.name}</h4>
-                    <p><strong>作者：</strong>${game.author} | <strong>提交时间：</strong>${formatTime(game.submittedAt)}</p>
+                    <p><strong>作者：</strong>${game.author} | <strong>提交时间：</strong>${formatTime(game.submittedat || game.createdat)}</p>
                     <p><strong>描述：</strong>${game.description}</p>
                     <p><strong>简介：</strong>${game.intro || '未填写'}</p>
                     <p><strong>链接：</strong>${game.url}</p>
@@ -2991,16 +3005,30 @@
             `).join('');
         }
 
-        function renderUsersProfile() {
-            const users = getUsers();
+        async function renderUsersProfile() {
+            let users = getUsers();
+            
+            if (!window.location.protocol.startsWith('file:')) {
+                try {
+                    const response = await fetch(`${API_URL}/api/users`, {
+                        headers: { 'Authorization': `Bearer ${currentUser?.id}` }
+                    });
+                    if (response.ok) {
+                        users = await response.json();
+                    }
+                } catch (e) {
+                    console.log('从服务器获取用户失败，使用本地数据');
+                }
+            }
+            
             const list = document.getElementById('usersListProfile');
             
             list.innerHTML = users.map(u => `
                 <div class="upload-item">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h4>${u.isAdmin ? '👑' : '👤'} ${u.username}${u.isAdmin ? '<span class="admin-badge">管理员</span>' : ''}</h4>
-                            <p>${u.email || '无邮箱'} | 注册时间：${formatTime(u.createdAt)}</p>
+                            <h4>${u.isadmin ? '👑' : '👤'} ${u.username}${u.isadmin ? '<span class="admin-badge">管理员</span>' : ''}</h4>
+                            <p>${u.email || '无邮箱'} | 注册时间：${formatTime(u.createdat)}</p>
                         </div>
                         ${isAdmin && u.id !== currentUser?.id ? `<button class="update-btn" onclick="messageUserFromAdmin('${u.id}', '${u.username}')">私信</button>` : ''}
                     </div>
@@ -3797,14 +3825,28 @@
             showNotification('已下架所有非官方游戏', 'info');
         }
 
-        function renderUsers() {
-            const users = getUsers();
+        async function renderUsers() {
+            let users = getUsers();
+            
+            if (!window.location.protocol.startsWith('file:')) {
+                try {
+                    const response = await fetch(`${API_URL}/api/users`, {
+                        headers: { 'Authorization': `Bearer ${currentUser?.id}` }
+                    });
+                    if (response.ok) {
+                        users = await response.json();
+                    }
+                } catch (e) {
+                    console.log('从服务器获取用户失败');
+                }
+            }
+            
             const list = document.getElementById('usersList');
             
             list.innerHTML = users.map(u => `
                 <div class="upload-item">
-                    <h4>${u.isAdmin ? '👑' : '👤'} ${u.username}${u.isAdmin ? '<span class="admin-badge">管理员</span>' : ''}</h4>
-                    <p>${u.email} | 注册时间：${formatTime(u.createdAt)}</p>
+                    <h4>${u.isadmin ? '👑' : '👤'} ${u.username}${u.isadmin ? '<span class="admin-badge">管理员</span>' : ''}</h4>
+                    <p>${u.email || '无邮箱'} | 注册时间：${formatTime(u.createdat)}</p>
                 </div>
             `).join('');
         }

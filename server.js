@@ -180,6 +180,33 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', db: dbReady ? 'connected' : 'disconnected' });
 });
 
+app.get('/api/users', authenticateToken, async (req, res) => {
+    try {
+        if (!req.user.isAdmin) {
+            return res.status(403).json({ error: '需要管理员权限' });
+        }
+        
+        let users = [];
+        
+        if (dbReady && pool) {
+            const result = await pool.query('SELECT id, username, email, isAdmin, createdAt FROM users ORDER BY createdAt DESC');
+            users = result.rows;
+        } else {
+            users = memoryDB.users.map(u => ({
+                id: u.id,
+                username: u.username,
+                email: u.email,
+                isAdmin: u.isAdmin,
+                createdAt: u.createdAt
+            }));
+        }
+        
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: '获取用户列表失败' });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     try {
         const { username, password, email } = req.body;
