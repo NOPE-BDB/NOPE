@@ -1187,12 +1187,13 @@
                     if (defaultGameIndex === -1) {
                         localGames.push(defaultGames[0]);
                     } else {
-                        const existingComments = localGames[defaultGameIndex].comments || [];
-                        const existingPlays = localGames[defaultGameIndex].plays || 0;
+                        const existingGame = localGames[defaultGameIndex];
                         localGames[defaultGameIndex] = { 
                             ...defaultGames[0], 
-                            comments: existingComments, 
-                            plays: existingPlays 
+                            id: existingGame.id,
+                            comments: existingGame.comments || [], 
+                            plays: existingGame.plays || 0,
+                            status: existingGame.status || 'approved'
                         };
                     }
                     saveGames(localGames);
@@ -2470,7 +2471,11 @@
             }
             
             const follows = getFollows();
+            console.log('toggleFollow - current follows:', follows);
+            console.log('toggleFollow - currentUser.id:', currentUser.id);
+            console.log('toggleFollow - authorId:', authorId);
             const existingIndex = follows.findIndex(f => f.followerId === currentUser.id && f.followingId === authorId);
+            console.log('toggleFollow - existingIndex:', existingIndex);
             const isNowFollowing = existingIndex === -1;
             
             if (existingIndex !== -1) {
