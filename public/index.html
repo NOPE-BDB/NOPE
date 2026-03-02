@@ -1191,6 +1191,7 @@
                         localGames[defaultGameIndex] = { 
                             ...defaultGames[0], 
                             id: existingGame.id,
+                            authorId: existingGame.authorId || defaultGames[0].authorId,
                             comments: existingGame.comments || [], 
                             plays: existingGame.plays || 0,
                             status: existingGame.status || 'approved'
