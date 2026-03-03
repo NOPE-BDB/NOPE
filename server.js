@@ -215,6 +215,20 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', db: dbReady ? 'connected' : 'disconnected' });
 });
 
+app.get('/api/debug/admin', async (req, res) => {
+    try {
+        if (dbReady && pool) {
+            const result = await pool.query("SELECT id, username, email, isadmin, \"isAdmin\" FROM users WHERE username = 'admin'");
+            res.json({ adminExists: result.rows.length > 0, admin: result.rows[0] });
+        } else {
+            const admin = memoryDB.users.find(u => u.username === 'admin');
+            res.json({ adminExists: !!admin, admin });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/users', authenticateToken, async (req, res) => {
     try {
         if (!req.user.isAdmin) {
@@ -314,7 +328,7 @@ app.post('/api/login', async (req, res) => {
         }
         
         const token = jwt.sign(
-            { id: user.id, username: user.username, isAdmin: user.isadmin },
+            { id: user.id, username: user.username, isAdmin: user.isadmin || user.isAdmin },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -326,7 +340,7 @@ app.post('/api/login', async (req, res) => {
                 id: user.id,
                 username: user.username,
                 email: user.email,
-                isAdmin: user.isadmin
+                isAdmin: user.isadmin || user.isAdmin
             }
         });
     } catch (error) {
