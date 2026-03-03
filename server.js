@@ -67,7 +67,7 @@ let memoryDB = loadedData || initialData;
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nope-game-platform-secret-key-2024';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'nope2024';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'nope2026';
 
 app.use(cors());
 app.use(express.json());
