@@ -1,11 +1,68 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { Pool } = require('pg');
-
+const fs = require('fs');
 const path = require('path');
+
+const DATA_FILE = path.join(__dirname, 'data.json');
+
+function loadDataFromFile() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            console.log('✅ 从文件加载数据成功');
+            return data;
+        }
+    } catch (error) {
+        console.error('⚠️ 加载数据文件失败，使用默认数据:', error.message);
+    }
+    return null;
+}
+
+function saveDataToFile(data) {
+    try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        console.log('💾 数据已保存到文件');
+    } catch (error) {
+        console.error('❌ 保存数据文件失败:', error.message);
+    }
+}
+
+function saveMemoryDB() {
+    if (!dbReady) {
+        saveDataToFile(memoryDB);
+    }
+}
+
+const initialData = {
+    users: [],
+    games: [{
+        id: 'default-1',
+        name: '海底耗子',
+        description: '在神秘的海底世界中，控制你的小鱼不断成长，躲避更大的鱼，成为海洋霸主！',
+        url: 'fish_game_simple.html',
+        icon: '🐟',
+        tags: '休闲,冒险,HTML5',
+        author: '管理员',
+        authorid: 'admin',
+        isadmingame: true,
+        plays: 0,
+        status: 'approved',
+        createdat: new Date().toISOString(),
+        comments: []
+    }],
+    comments: [],
+    follows: [],
+    messages: [],
+    activities: []
+};
+
+const loadedData = loadDataFromFile();
+let memoryDB = loadedData || initialData;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -133,28 +190,6 @@ async function initDatabase() {
     }
 }
 
-const memoryDB = {
-    users: [],
-    games: [{
-        id: 'default-1',
-        name: '海底耗子',
-        description: '在神秘的海底世界中，控制你的小鱼不断成长，躲避更大的鱼，成为海洋霸主！',
-        url: 'fish_game_simple.html',
-        icon: '🐟',
-        tags: '休闲,冒险,HTML5',
-        author: '管理员',
-        authorid: 'admin',
-        isadmingame: true,
-        plays: 0,
-        status: 'approved',
-        createdat: new Date().toISOString()
-    }],
-    comments: [],
-    follows: [],
-    messages: [],
-    activities: []
-};
-
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -247,6 +282,7 @@ app.post('/api/register', async (req, res) => {
                 email: email || '',
                 isadmin: false
             });
+            saveMemoryDB();
         }
         
         res.json({ success: true, message: '注册成功' });
@@ -415,8 +451,10 @@ app.post('/api/games', authenticateToken, async (req, res) => {
                 isadmingame: req.user.isAdmin,
                 plays: 0,
                 status,
-                createdat: new Date().toISOString()
+                createdat: new Date().toISOString(),
+                comments: []
             });
+            saveMemoryDB();
         }
         
         res.json({ 
@@ -436,6 +474,7 @@ app.post('/api/games/:id/play', async (req, res) => {
         } else {
             const game = memoryDB.games.find(g => g.id === req.params.id);
             if (game) game.plays = (game.plays || 0) + 1;
+            saveMemoryDB();
         }
         res.json({ success: true });
     } catch (error) {
@@ -484,6 +523,7 @@ app.post('/api/follows', authenticateToken, async (req, res) => {
             );
             if (existingIndex > -1) {
                 memoryDB.follows.splice(existingIndex, 1);
+                saveMemoryDB();
                 res.json({ success: true, action: 'unfollowed' });
             } else {
                 memoryDB.follows.push({
@@ -494,6 +534,7 @@ app.post('/api/follows', authenticateToken, async (req, res) => {
                     followingname: followingName,
                     createdat: new Date().toISOString()
                 });
+                saveMemoryDB();
                 res.json({ success: true, action: 'followed' });
             }
         }
@@ -542,6 +583,7 @@ app.post('/api/games/:id/comments', authenticateToken, async (req, res) => {
                     content,
                     createdat: new Date().toISOString()
                 });
+                saveMemoryDB();
             }
         }
         res.json({ success: true, commentId });
@@ -667,14 +709,18 @@ app.listen(PORT, async () => {
     console.log(`🚀 NOPE游戏平台服务器运行在端口 ${PORT}`);
     dbReady = await initDatabase();
     if (!dbReady) {
-        console.log('⚠️ 使用内存存储模式，数据不会持久化');
-        const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
-        memoryDB.users.push({
-            id: 'admin',
-            username: 'admin',
-            password: hashedPassword,
-            email: 'admin@nope.com',
-            isadmin: true
-        });
+        console.log('⚠️ 使用文件存储模式，数据将保存到 data.json');
+        const adminExists = memoryDB.users.find(u => u.username === 'admin');
+        if (!adminExists) {
+            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+            memoryDB.users.push({
+                id: 'admin',
+                username: 'admin',
+                password: hashedPassword,
+                email: 'admin@nope.com',
+                isadmin: true
+            });
+            saveMemoryDB();
+        }
     }
 });
