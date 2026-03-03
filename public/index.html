@@ -505,6 +505,51 @@
             transition: all 0.3s ease;
         }
         .reject-btn:hover { background: rgba(244, 67, 54, 0.5); }
+        .upload-area {
+            border: 2px dashed rgba(0, 188, 212, 0.5);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: 15px;
+        }
+        .upload-area:hover {
+            border-color: rgba(0, 188, 212, 0.8);
+            background: rgba(0, 188, 212, 0.1);
+        }
+        .upload-area.dragover {
+            border-color: #00bcd4;
+            background: rgba(0, 188, 212, 0.2);
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #4dd0e1;
+        }
+        .upload-text {
+            color: #b0bec5;
+            font-size: 0.9rem;
+        }
+        .upload-text small {
+            color: #78909c;
+            display: block;
+            margin-top: 5px;
+        }
+        .preview-image {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+        .preview-image.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -590,7 +635,7 @@
     </div>
 
     <div class="modal" id="uploadModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <span class="close-btn" onclick="closeUploadModal()">&times;</span>
             <h3 class="modal-title" id="uploadModalTitle">📤 上传新游戏</h3>
             <form id="uploadForm" onsubmit="submitGame(event)">
@@ -607,12 +652,29 @@
                     <textarea id="gameIntro" placeholder="详细介绍游戏玩法、操作方式、特色等" style="min-height: 120px;"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>游戏链接 *</label>
-                    <input type="text" id="gameUrl" required placeholder="游戏文件的相对路径">
+                    <label>游戏封面</label>
+                    <div class="upload-area" id="coverUploadArea" onclick="document.getElementById('coverFile').click()">
+                        <input type="file" id="coverFile" accept="image/*" onchange="handleCoverSelect(event)">
+                        <div class="upload-icon">🖼️</div>
+                        <div class="upload-text">
+                            点击或拖拽上传封面图片
+                            <small>支持 JPG、PNG、GIF 格式</small>
+                        </div>
+                        <img id="coverPreview" class="preview-image">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>游戏图标（emoji）</label>
-                    <input type="text" id="gameIcon" placeholder="🎮" maxlength="2" style="width: 80px;">
+                    <label>游戏文件 *</label>
+                    <div class="upload-area" id="gameUploadArea" onclick="document.getElementById('gameFile').click()">
+                        <input type="file" id="gameFile" onchange="handleGameFileSelect(event)">
+                        <div class="upload-icon">🎮</div>
+                        <div class="upload-text">
+                            点击或拖拽上传游戏文件
+                            <small>支持 HTML 文件</small>
+                        </div>
+                        <div id="gameFileName" class="upload-text" style="margin-top: 10px; color: #4dd0e1;"></div>
+                    </div>
+                    <input type="hidden" id="gameUrl">
                 </div>
                 <div class="form-group">
                     <label>游戏标签（用逗号分隔）</label>
@@ -920,10 +982,71 @@
             document.getElementById('uploadModal').classList.add('active');
             document.getElementById('uploadModalTitle').textContent = '📤 上传新游戏';
             document.getElementById('uploadForm').reset();
+            setupDragDrop();
         }
 
         function closeUploadModal() {
             document.getElementById('uploadModal').classList.remove('active');
+            document.getElementById('coverPreview').classList.remove('show');
+            document.getElementById('coverPreview').src = '';
+            document.getElementById('gameFileName').textContent = '';
+            document.getElementById('gameUrl').value = '';
+        }
+
+        function handleCoverSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('coverPreview');
+                    preview.src = e.target.result;
+                    preview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleGameFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('gameFileName').textContent = '已选择: ' + file.name;
+                document.getElementById('gameUrl').value = file.name;
+            }
+        }
+
+        function setupDragDrop() {
+            ['coverUploadArea', 'gameUploadArea'].forEach(id => {
+                const area = document.getElementById(id);
+                if (!area) return;
+                
+                area.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    area.classList.add('dragover');
+                });
+                
+                area.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                });
+                
+                area.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        if (id === 'coverUploadArea') {
+                            const fileInput = document.getElementById('coverFile');
+                            fileInput.files = files;
+                            handleCoverSelect({ target: fileInput });
+                        } else if (id === 'gameUploadArea') {
+                            const fileInput = document.getElementById('gameFile');
+                            fileInput.files = files;
+                            handleGameFileSelect({ target: fileInput });
+                        }
+                    }
+                });
+            });
         }
 
         async function submitGame(e) {
@@ -933,8 +1056,17 @@
             const description = document.getElementById('gameDesc').value;
             const intro = document.getElementById('gameIntro').value;
             const url = document.getElementById('gameUrl').value;
-            const icon = document.getElementById('gameIcon').value || '🎮';
+            const coverFile = document.getElementById('coverFile').files[0];
             const tags = document.getElementById('gameTags').value;
+
+            let cover = '';
+            if (coverFile) {
+                cover = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(coverFile);
+                });
+            }
 
             try {
                 const response = await fetch(`${API_URL}/api/games`, {
@@ -943,7 +1075,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ name, description, intro, url, icon, tags })
+                    body: JSON.stringify({ name, description, intro, url, cover, tags })
                 });
 
                 const data = await response.json();
@@ -981,8 +1113,8 @@
 
                 return `
                 <div class="game-card">
-                    <div class="game-preview">
-                        <span class="game-icon">${game.icon}</span>
+                    <div class="game-preview" style="${game.cover ? 'background: linear-gradient(135deg, #1a1a2e, #16213e);' : ''}">
+                        ${game.cover ? `<img src="${game.cover}" style="width: 100%; height: 160px; object-fit: cover;">` : `<span class="game-icon">${game.icon}</span>`}
                     </div>
                     <div class="game-info">
                         <h3 class="game-title">${game.name}${game.isadmingame ? '<span class="admin-badge">官方</span>' : ''}</h3>
